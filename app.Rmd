@@ -1,0 +1,118 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+library(shiny)
+library(ggplot2)
+######################### UI ###################################
+##########################  ####################################
+ui <- fluidPage(
+  
+  # Title
+  titlePanel("Data Set Preview"),
+  # Sidebar
+  sidebarLayout(
+    
+    # Sidebar panel:specify inputs
+    sidebarPanel(
+      
+      #Input type 1: dropdown) Dataset Selector
+      selectInput(inputId = "dataset",
+                  label = "Preview a Default R Dataset",
+                  choices = c("Tooth_Growth", "Iris_Size", "MT_Cars", "USA_Arrests")),
+      
+      
+      
+      #Clickbutton) Load Data Button
+      actionButton("go", "Load Data & Plot"),
+      
+      #) Plotting input selector: placed above slider input to avoid scrolling for long lists
+      uiOutput("xvar"),
+      uiOutput("yvar"),
+      
+      #4) Input type 2: slider) Preview Obs 
+      sliderInput(inputId = "obs",
+                  label = "Adjust to preview data set obs.",
+                  value = 3,
+                  min = 1,
+                  max = 20),
+      
+      #Input 3: Text) Graph Title
+      textInput(inputId = "title", label="Graph Title")
+      
+    ),
+    
+    # Main panel
+    mainPanel(
+      
+      # Numeric Computation Results
+      verbatimTextOutput("summary"),
+      
+      # Graph
+      h3(textOutput("caption")),
+      plotOutput("plot"),
+      
+      # Print preview of full observations
+      tableOutput("view")
+      
+    )
+    
+  )
+)
+
+############################## Server ###########################################
+###############################      ############################################
+server <- function(input, output, session) {
+  
+  # Swith Data set function
+  datasetInput <- eventReactive(input$go, {
+    switch(input$dataset,
+           "Tooth_Growth" = ToothGrowth,
+           "Iris_Size" = pressure,
+           "MT_Cars" = mtcars,
+           "USA_Arrests" = USArrests)
+  })
+  
+  # Generate a summary of the dataset ----
+  output$summary <- renderPrint({
+    dataset <- datasetInput()
+    summary(dataset)
+  })
+  
+  #Graph) Dynamic Graph based on dataset
+  output$plot <- renderPlot({
+    
+    ggplot(dat(),aes(x = X,y = Y)) + geom_point(colour = 'blue', size=3) +
+      labs(y = input$yName,
+           x = input$xName,
+           title = input$title)
+  })
+  
+  # Preview Obs table
+  output$view <- renderTable({
+    head(datasetInput(), n = input$obs)
+  })
+  # x & Y specification backend
+  output$xvar <- renderUI({
+    selectInput("xName", label = "X Variable", choices = names(datasetInput()))  
+  })
+  output$yvar <- renderUI({
+    selectInput("yName", label = "Y Variable", choices = names(datasetInput()) ) 
+  })
+  #Plot backend
+  dat <- reactive({
+    dynamicPlot <- data.frame(datasetInput()[[input$xName]], datasetInput()[[input$yName]])
+    colnames(dynamicPlot) <- c("X", "Y")
+    return(dynamicPlot)
+  })
+  
+}
+shinyApp(ui, server)
+
+#References: 
+#There was a lot of troubleshooting documentation consulted but I mainly got my ideas from the OTS shiny documentation and then the link for graphing a dynamic dataset
+#https://shiny.rstudio.com/articles/basics.html
+#https://stackoverflow.com/questions/53113065/r-shiny-read-data-file-get-user-to-select-variable-plot-with-ggplot
+```
